@@ -1,0 +1,15 @@
+/* settings */
+:root {
+  --color-primary: #0b1f3a;
+  --color-secondary: #162d50;
+  --color-point: #ff7b00;
+  --color-body: #e6e9ef;
+  --color-bg: #0e1525;
+}
+
+/* reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
