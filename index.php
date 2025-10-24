@@ -54,23 +54,12 @@
   $posts = getPosts();
 ?>
 
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi Blog</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <header>
-    <h2>blog title</h2>
-  </header>
+<?php include 'header.php' ?>
 
   <main>
+    <!-- search form -->
     <div class="search_container">
-      <form action="search_result" method="get">
+      <form action="result.php" method="get">
         <input type="search" name="search" id="search">
         <button type="submit">
           <img src="./svgs/search.svg" alt="Buscar post">
@@ -78,22 +67,25 @@
       </form>
     </div>
 
+    <!-- text area -->
     <section class="writing_area">
       <form action="index.php" method="post">
-        <label for="writing">Qué pasó hoy?</label>
-        <textarea name="writing" id="writing"></textarea>
+        <label for="writing"><h3>¿Qué pasó hoy?</h3></label>
+        <textarea name="writing" id="writing" placeholder="Escribe aquí.."></textarea>
         <button type="submit">Enviar</button>
       </form>
     </section>
 
+    <!-- entrada anterior -->
     <section class="contents_list">
+      <h3>Entrada anterior</h3>
       <?php if (empty($posts)): ?>
         <p>No hay posts todavía. ¡Escribe el primero!</p>
       <?php else: ?>
         <?php foreach ($posts as $post): ?>
           <article class="post_preview">
             <div class="post_timestamp">
-              <?php echo date('d/m/Y H:i', $post['timestamp']); ?>
+              <?php echo date('d/m/Y H:i:s', $post['timestamp']); ?>
             </div>
             <div class="post_content">
               <?php 
@@ -111,8 +103,4 @@
     </section>
   </main>
 
-  <footer>
-    footer-
-  </footer>
-</body>
-</html>
+  <?php include 'footer.php' ?>
