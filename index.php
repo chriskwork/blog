@@ -1,63 +1,57 @@
 <?php
-  // guardar post
-  if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['writing'])) {
-      $content = trim($_POST['writing']);
-      
-      if (!empty($content)) {
-          // crear 'posts' directory si no existe
-          if (!file_exists('posts')) {
-              mkdir('posts', 0777, true);
-          }
-          
-          // nombrar posts con el timestamp
-          // y guardar el contenido
-          $timestamp = time();
-          $filename = 'posts/post_' . $timestamp . '.txt';
-          
-          $data = $timestamp . '|' . $content;
-          file_put_contents($filename, $data);
-          
-          header('Location: index.php');
-          exit;
+  error_reporting(E_ALL);
+  ini_set('display_errors', 1);
+  
+  require_once 'db_connect.php';
+
+  // guardar nuevo post
+  if (isset($_POST['enviar'])) {
+    $contenido = trim($_POST['writing']);
+    
+    if (!empty($contenido)) {
+      try {
+        $sql = "INSERT INTO posts (content) VALUES (:content)";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['content' => $contenido]);
+        
+        header('Location: index.php');
+        exit;
+      } catch(PDOException $e) {
+        die("Error al guardar: " . $e->getMessage());
       }
+    }
   }
 
-  // traer los archivos guardados
-  function getPosts() {
-      $posts = [];
+  // eliminar
+  if (isset($_GET['eliminar'])) {
+    $id = $_GET['eliminar'];
+    
+    try {
+      $sql = "DELETE FROM posts WHERE id = :id";
+      $stmt = $pdo->prepare($sql);
+      $stmt->execute(['id' => $id]);
       
-      if (file_exists('posts')) {
-          $files = glob('posts/post_*.txt');
-          
-          foreach ($files as $file) {
-              $content = file_get_contents($file);
-              $parts = explode('|', $content, 2);
-              
-              if (count($parts) === 2) {
-                  $posts[] = [
-                      'timestamp' => $parts[0],
-                      'content' => $parts[1],
-                      'filename' => basename($file)
-                  ];
-              }
-          }
-          
-          // ordenar
-          usort($posts, function($a, $b) {
-              return $b['timestamp'] - $a['timestamp'];
-          });
-      }
-      
-      return $posts;
+      header('Location: index.php');
+      exit;
+    } catch(PDOException $e) {
+      die("Error al eliminar: " . $e->getMessage());
+    }
   }
 
-  $posts = getPosts();
+  // cargar posts anteriores
+  try {
+    $sql = "SELECT id, content, publish_date FROM posts ORDER BY publish_date DESC";
+    $stmt = $pdo->query($sql);
+    $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+  } catch(PDOException $e) {
+    die("Error al cargar posts: " . $e->getMessage());
+  }
 ?>
 
 <?php include 'header.php' ?>
 
   <main>
-    <!-- search form -->
+    <!-- buscar -->
     <div class="search_container">
       <form action="result.php" method="get">
         <input type="search" name="search" id="search">
@@ -71,12 +65,12 @@
     <section class="writing_area">
       <form action="index.php" method="post">
         <label for="writing"><h3>¿Qué pasó hoy?</h3></label>
-        <textarea name="writing" id="writing" placeholder="Escribe aquí.."></textarea>
-        <button type="submit">Enviar</button>
+        <textarea name="writing" id="writing" placeholder="Escribe aquí.." required></textarea>
+        <button type="submit" name="enviar">Enviar</button>
       </form>
     </section>
 
-    <!-- entrada anterior -->
+    <!-- lista de entradas anteriores -->
     <section class="contents_list">
       <h3>Entrada anterior</h3>
       <?php if (empty($posts)): ?>
@@ -84,18 +78,25 @@
       <?php else: ?>
         <?php foreach ($posts as $post): ?>
           <article class="post_preview">
+            
             <div class="post_timestamp">
-              <?php echo date('d/m/Y H:i:s', $post['timestamp']); ?>
+              <?php echo date('d/m/Y H:i:s', strtotime($post['publish_date'])); ?>
             </div>
+            
             <div class="post_content">
               <?php 
-                // demostrar maximo 150 letras
                 $preview = mb_substr($post['content'], 0, 150);
                 if (mb_strlen($post['content']) > 150) {
                     $preview .= '...';
                 }
                 echo nl2br(htmlspecialchars($preview)); 
               ?>
+            </div>
+          
+            <div class="post_actions">
+              <a href="edit.php?id=<?php echo $post['id']; ?>"><button type="button" class="btn-editar">Editar</button></a>
+              <a href="?eliminar=<?php echo $post['id']; ?>" 
+                 onclick="return confirm('Estás seguro?')"><button type="button" class="btn-eliminar">Eliminar</button></a>
             </div>
           </article>
         <?php endforeach; ?>

@@ -1,91 +1,79 @@
 <?php
+  
+  require_once 'db_connect.php';
 
-$searchTerm = isset($_GET['search']) ? trim($_GET['search']) : '';
+  $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+  $posts = [];
 
-function searchPosts($searchTerm) {
-        $results = [];
-        
-        if (empty($searchTerm) || !file_exists('posts')) {
-            return $results;
-        }
-        
-        $files = glob('posts/post_*.txt');
-        
-        foreach ($files as $file) {
-            $content = file_get_contents($file);
-            $parts = explode('|', $content, 2);
-            
-            if (count($parts) === 2) {
-                // check si el contenido lleva el termo
-                if (stripos($parts[1], $searchTerm) !== false) {
-                    $results[] = [
-                        'timestamp' => $parts[0],
-                        'content' => $parts[1],
-                        'filename' => basename($file)
-                    ];
-                }
-            }
-        }
-        
-        // ordenar resultados
-        usort($results, function($a, $b) {
-            return $b['timestamp'] - $a['timestamp'];
-        });
-        
-        return $results;
+  if (!empty($search)) {
+    try {
+      // Buscar en el contenido de los posts
+      $sql = "SELECT id, content, publish_date 
+              FROM posts 
+              WHERE content LIKE :search 
+              ORDER BY publish_date DESC";
+      $stmt = $pdo->prepare($sql);
+      $stmt->execute(['search' => '%' . $search . '%']);
+      $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch(PDOException $e) {
+      die("Error en la búsqueda: " . $e->getMessage());
     }
-
-    $results = searchPosts($searchTerm);
+  }
 ?>
 
 <?php include 'header.php' ?>
 
   <main>
     <div class="search_container">
-      <form action="search_result.php" method="get">
-        <input type="search" name="search" id="search" value="<?php echo htmlspecialchars($searchTerm); ?>" placeholder="Buscar...">
+      <form action="result.php" method="get">
+        <input type="search" name="search" id="search" value="<?php echo htmlspecialchars($search); ?>">
         <button type="submit">
           <img src="./svgs/search.svg" alt="Buscar post">
         </button>
       </form>
     </div>
 
-    <section class="search_results">
-      <a href="index.php" class="back_link">← Volver al inicio</a>
-      
-      <h3>Resultados para: "<?php echo htmlspecialchars($searchTerm); ?>"</h3>
-      
-      <?php if (empty($searchTerm)): ?>
-        <p>Por favor, escribe algo para buscar.</p>
-      <?php elseif (empty($results)): ?>
-        <p>No se encontraron resultados para "<?php echo htmlspecialchars($searchTerm); ?>"</p>
+    <!-- resultados -->
+    <section class="contents_list">
+      <?php if (empty($search)): ?>
+        <h3>Escribe algo para buscar</h3>
+        <p><a href="index.php">← Volver al inicio</a></p>
+      <?php elseif (empty($posts)): ?>
+        <h3>No se encontraron resultados para "<?php echo htmlspecialchars($search); ?>"</h3>
+        <p><a href="index.php">← Volver al inicio</a></p>
       <?php else: ?>
-        <p>Se encontraron <?php echo count($results); ?> resultado(s):</p>
+        <h3>Resultados para "<?php echo htmlspecialchars($search); ?>" (<?php echo count($posts); ?>)</h3>
+        <p><a href="index.php">← Volver al inicio</a></p>
         
-        <?php foreach ($results as $post): ?>
+        <?php foreach ($posts as $post): ?>
           <article class="post_preview">
+
             <div class="post_timestamp">
-              <?php echo date('d/m/Y H:i:s', $post['timestamp']); ?>
+              <?php echo date('d/m/Y H:i:s', strtotime($post['publish_date'])); ?>
             </div>
+
             <div class="post_content">
               <?php 
-
-                // emphasize the keyword
+                // Resaltar el término de búsqueda
                 $content = htmlspecialchars($post['content']);
-                $highlightedContent = str_ireplace(
-                    $searchTerm, 
-                    '<mark>' . htmlspecialchars($searchTerm) . '</mark>', 
-                    $content
+                $highlighted = str_ireplace(
+                  htmlspecialchars($search), 
+                  '<mark>' . htmlspecialchars($search) . '</mark>', 
+                  $content
                 );
-                
-                // mostrar 200 letras  
-                $preview = mb_substr($highlightedContent, 0, 200);
-                if (mb_strlen($post['content']) > 200) {
-                    $preview .= '...';
-                }
-                echo nl2br($preview); 
-
+                echo nl2br($highlighted);
               ?>
+            </div>
+            
+
+            <div class="post_actions">
+              <a href="edit.php?id=<?php echo $post['id']; ?>">
+                <button type="button">Editar</button>
+              </a>
+              <a href="index.php?eliminar=<?php echo $post['id']; ?>" 
+                 onclick="return confirm('¿Estás seguro de eliminar este post?')">
+                <button type="button" class="btn-eliminar">Eliminar</button>
+              </a>
             </div>
           </article>
         <?php endforeach; ?>
